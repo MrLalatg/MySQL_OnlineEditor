@@ -17,4 +17,9 @@ export default class db{
         const res = await axios.post(`${url}${table}`, data);
         return res.data;
     }
+
+    static async createTable(table, columns){
+        const res = axios.post(`${url}`, {tableName: table, cols: columns});
+        return res.data();
+    }
 }

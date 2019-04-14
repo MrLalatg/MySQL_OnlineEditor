@@ -31,9 +31,15 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+	console.log(req.body);
 	const connection = createConnection();
 	connection.connect();
-	connection.query("CREATE ")
+	console.log(`CREATE TABLE IF NOT EXISTS ${req.body.tableName}(${req.body.cols.reduce((acc, item) => {
+		return `${acc} , ${item.colName} ${item.type}`;
+	}, "id INT AUTO_INCREMENT NOT NULL")}, PRIMARY KEY(id))`);
+	connection.query(`CREATE TABLE IF NOT EXISTS ${req.body.tableName}(${req.body.cols.reduce((acc, item) => {
+		return `${acc} , ${item.colName} ${item.type}`;
+	}, "id INT AUTO_INCREMENT NOT NULL")}, PRIMARY KEY(id))`);
 });
 
 //Set specific table
