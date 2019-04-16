@@ -4,10 +4,10 @@
             <tr><th>Название</th><th>Значение</th></tr>
             <tr v-for="(data, key) in rowData" :key="key">
                 <td>{{key}}</td>
-                <td><input type="text" v-model="rowData[key]"></td>
+                <td><el-input size="medium" type="text" v-model="rowData[key]"></el-input></td>
             </tr>
         </table>
-        <button @click="onSaveClick" v-if="modified">Сохранить</button>
+        <el-button size="small" type="success" plain @click="onSaveClick" v-if="modified">Сохранить</el-button>
     </div>
 </template>
 

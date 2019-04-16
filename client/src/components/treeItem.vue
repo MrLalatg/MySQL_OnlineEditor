@@ -4,11 +4,20 @@
            {{tableName}}
         </div>
         <template v-for="item in tableContent">
-            <div @click="$emit('open-full', item, tableName)" v-if="vis" :key="item.id" class="children">
-                {{item.key_name}}
+
+            <div :key="item.id" v-if="vis">
+                <div @click="$emit('open-full', item, tableName)" class="children" style="display: inline-block; width: 75%">
+                    {{item.key_name}}
+                </div>
+
+                <el-button type="danger" plain size="mini" icon="el-icon-delete" style="display: inline-block; vertical-align: middle"></el-button>
             </div>
         </template>
-        <div id="addRow" class="children" v-if="vis">+</div>
+        <el-row v-if="vis">
+            <hr>
+            <el-col><el-button type="success" size="mini" class="controls">Добавить запись</el-button></el-col>
+            <el-col><el-button @click="vis = false; $emit('confirm-delete', tableName)" type="danger" size="mini" class="controls">Удалить таблицу</el-button></el-col>
+        </el-row>
     </div>
 </template>
 
@@ -20,8 +29,8 @@ export default {
     data() {
         return {
             vis: false,
-            openedRows: [],
             tableContent: null,
+            confirmDeleteVis: false,
         }
     },
 
@@ -41,8 +50,15 @@ export default {
 </script>
 
 <style scoped>
+    hr{
+        margin-right: 10px;
+        margin-bottom: 5px;
+        margin-top: 5px;
+    }
+
     .content{
         border:1px solid red;
+        border-radius: 5px;
         margin-bottom: 5px;
         font-family: "Trebuchet MS", Helvetica, sans-serif;
         font-size: 18px;
@@ -52,11 +68,16 @@ export default {
 
     .children{
         border: 1px solid grey;
+        border-radius: 5px;
         margin: 5px;
         padding-left: 10px;
     }
 
-    #addRow{
-        color: forestgreen;
+    .controls{
+        margin-left: 5px;
+        margin-bottom: 5px;
+        margin-right: 5px;
+        font-size: 14px;
+        width: 95%;
     }
 </style>

@@ -11,7 +11,6 @@ router.get('/:table', (req, res) => {
 	if(!authTables.includes(req.params.table)){
 		res.sendStatus(403);
 	}
-	console.log(authTables);
 	const connection = createConnection();
 	connection.connect();
 	connection.query(`SELECT * FROM ${req.params.table}`, (err, rows, columns) => {
@@ -30,16 +29,26 @@ router.get('/', (req, res) => {
 	});
 });
 
+//Create table
 router.post('/', (req, res) => {
-	console.log(req.body);
 	const connection = createConnection();
 	connection.connect();
-	console.log(`CREATE TABLE IF NOT EXISTS ${req.body.tableName}(${req.body.cols.reduce((acc, item) => {
-		return `${acc} , ${item.colName} ${item.type}`;
-	}, "id INT AUTO_INCREMENT NOT NULL")}, PRIMARY KEY(id))`);
-	connection.query(`CREATE TABLE IF NOT EXISTS ${req.body.tableName}(${req.body.cols.reduce((acc, item) => {
-		return `${acc} , ${item.colName} ${item.type}`;
-	}, "id INT AUTO_INCREMENT NOT NULL")}, PRIMARY KEY(id))`);
+	connection.query(`CREATE TABLE IF NOT EXISTS ${req.body.tableName}(${req.body.cols.reduce((acc, item) => 
+		`${acc} , ${item.colName} ${item.type}`
+	, `id INT AUTO_INCREMENT NOT NULL, key_name VARCHAR(255) GENERATED ALWAYS AS (${req.body.keyname}) VIRTUAL`)}, PRIMARY KEY(id))`, (err) => {
+		res.sendStatus(201);
+	});
+});
+
+//Delete specific table
+router.delete('/:table', (req, res) => {
+	if(!authTables.includes(req.params.table)){
+		res.send("Table doesn't exists");
+	}
+	const connection = createConnection();
+	connection.connect();
+	connection.query(`DROP TABLE ${req.params.table}`);
+	res.sendStatus(200);
 });
 
 //Set specific table
@@ -54,6 +63,18 @@ router.post('/:table', (req, res) => {
 	res.sendStatus(201);
 });
 
+// TODO: insert into table
+// router.post('/insert/:table', (req, res) =>{
+// 	if(!authTables.includes(req.params.table)){
+// 		res.sendStatus(403);
+// 	}
+// 	const connection = createConnection();
+// 	connection.connect();
+// 	let columns = req.body.map(item => {
+// 		item.colName + ","
+// 	}).join("");
+// 	connection.query(`INSERT INTO '${req.params.table}'()`)
+// });
 
 function createConnection(){
 	return sql.createConnection({

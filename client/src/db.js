@@ -18,8 +18,13 @@ export default class db{
         return res.data;
     }
 
-    static async createTable(table, columns){
-        const res = axios.post(`${url}`, {tableName: table, cols: columns});
-        return res.data();
+    static async createTable(table, columns, keyname){
+        const res = await axios.post(`${url}`, {tableName: table, cols: columns, keyname: keyname});
+        return res.data;
+    }
+
+    static async deleteTable(table){
+        const res = await axios.delete(`${url}${table}`);
+        return res.data;
     }
 }
