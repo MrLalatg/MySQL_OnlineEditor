@@ -14,7 +14,7 @@ router.get('/:table', (req, res) => {
 	const connection = createConnection();
 	connection.connect();
 	connection.query(`SELECT * FROM ${req.params.table}`, (err, rows, columns) => {
-		res.send(JSON.stringify(rows));
+		res.send(JSON.stringify({rows, columns}));
 	});
 });
 
@@ -63,18 +63,21 @@ router.post('/:table', (req, res) => {
 	res.sendStatus(201);
 });
 
-// TODO: insert into table
-// router.post('/insert/:table', (req, res) =>{
-// 	if(!authTables.includes(req.params.table)){
-// 		res.sendStatus(403);
-// 	}
-// 	const connection = createConnection();
-// 	connection.connect();
-// 	let columns = req.body.map(item => {
-// 		item.colName + ","
-// 	}).join("");
-// 	connection.query(`INSERT INTO '${req.params.table}'()`)
-// });
+router.post('/insert/:table', (req, res) =>{
+	if(!authTables.includes(req.params.table)){
+		res.sendStatus(403);
+	}
+	console.log(req.body);
+	const connection = createConnection();
+	connection.connect();
+
+	let columns = Object.keys(req.body).map((item) => item ).join(", ");
+	let rows = Object.values(req.body).map(item => `'${item}'`).join(", ");
+	let colValues = `(${columns}) VALUES (${rows})`;
+	connection.query(`INSERT INTO ${req.params.table}${colValues}`, (err) => {
+		res.sendStatus(201);
+	});
+});
 
 function createConnection(){
 	return sql.createConnection({

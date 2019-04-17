@@ -27,4 +27,9 @@ export default class db{
         const res = await axios.delete(`${url}${table}`);
         return res.data;
     }
+
+    static async insertIntoTable(table, data){
+        const res = await axios.post(`${url}insert/${table}`, data);
+        return res.data;
+    }
 }

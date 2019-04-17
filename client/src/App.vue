@@ -1,7 +1,15 @@
 <template>
     <div id="content">
         <div id="tree">
-            <treeItem v-for="item in content" :key="item.id" :tableName="item.TABLE_NAME" @open-full="onOpenFull" @confirm-delete="onConfirmDelete"></treeItem>
+            <treeItem
+                v-for="item in content"
+                :key="item.id"
+                :tableName="item.TABLE_NAME"
+                @open-full="onOpenFull"
+                @confirm-delete="onConfirmDelete"
+                @new-row="onNewRow"
+                ref="tree"
+            ></treeItem>
             <el-button type="success" size="mini" style="font-size: 14px" @click="onCreateTable">Создать таблицу</el-button>
         </div>
         
@@ -27,6 +35,24 @@
                 <el-button type="success" @click="deleteTable">Да, это не ошибка</el-button>
             </span>
         </el-dialog>
+
+        <el-dialog title="Новая запись" :visible.sync="newRow">
+            <span style="font-size: 17px">Если вы хотите создать новую запись в таблице {{curTable}}, заполните данные и нажмите OK</span>
+            <hr>
+            <div id="newRowDialog">
+                <table>
+                    <tr><th>Название</th><th>Значение</th></tr>
+                    <tr v-for="(data, key) in newRowData" :key="key">
+                        <td>{{key}}</td>
+                        <td><el-input size="medium" type="text" v-model="newRowData[key]"></el-input></td>
+                    </tr>
+                </table>
+            </div>
+            <span slot="footer" class="dialog-footer">
+                <el-button type="danger" @click="newRowData = {}; newRow = false">Отмена</el-button>
+                <el-button type="success" @click="onInsert()">Сохранить</el-button>
+            </span>
+        </el-dialog>
     </div>
 </template>
 
@@ -46,6 +72,9 @@ export default {
         tableCreating: false,
         confirmDeleteVis: false,
         tableModal: null,
+        newRow: false,
+        newRowData: null,
+        treeReload: null,
     }
   },
   components: {
@@ -83,6 +112,26 @@ export default {
       onConfirmDelete(table){
           this.confirmDeleteVis = true;
           this.tableModal = table;
+      },
+
+      onNewRow(tableCols, tableName, reload){
+          this.curTable = tableName;
+          this.treeReload = reload;
+          this.newRow = true;
+          this.newRowData = {};
+          tableCols.forEach((column) => {
+              if(column['name'] != "id" && column['name'] != "key_name") {
+                  this.$set(this.newRowData, `${column['name']}`, null)
+              }
+          });
+      },
+
+      async onInsert(){
+          await db.insertIntoTable(this.curTable, this.newRowData);
+          this.newRow = false;
+          this.newRowData = null;
+          this.treeReload();
+          this.treeReload = null;
       }
   },
 }
@@ -128,6 +177,14 @@ export default {
     #tips{
         height: 50%;
         display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #newRowDialog{
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
     }

@@ -3,7 +3,7 @@
         <div @click="onTableClick">
            {{tableName}}
         </div>
-        <template v-for="item in tableContent">
+        <template v-for="item in tableRows">
 
             <div :key="item.id" v-if="vis">
                 <div @click="$emit('open-full', item, tableName)" class="children" style="display: inline-block; width: 75%">
@@ -15,7 +15,7 @@
         </template>
         <el-row v-if="vis">
             <hr>
-            <el-col><el-button type="success" size="mini" class="controls">Добавить запись</el-button></el-col>
+            <el-col><el-button @click="$emit('new-row', tableColumns, tableName, reload)" type="success" size="mini" class="controls">Добавить запись</el-button></el-col>
             <el-col><el-button @click="vis = false; $emit('confirm-delete', tableName)" type="danger" size="mini" class="controls">Удалить таблицу</el-button></el-col>
         </el-row>
     </div>
@@ -29,18 +29,27 @@ export default {
     data() {
         return {
             vis: false,
-            tableContent: null,
+            tableRows: null,
+            tableColumns: null,
             confirmDeleteVis: false,
         }
     },
 
     methods: {
         async onTableClick(){
-            if(!this.tableContent){
-                this.tableContent = await db.getContent(this.tableName);
+            if(!this.tableRows){
+                let data = await db.getContent(this.tableName);
+                this.tableRows = data.rows;
+                this.tableColumns = data.columns;
             }
             this.vis = !this.vis;
         },
+
+        async reload(){
+            let data = await db.getContent(this.tableName);
+            this.tableRows = data.rows;
+            this.tableColumns = data.columns;
+        }
     },
 
     props: {
