@@ -10,6 +10,13 @@
                 @new-row="onNewRow"
                 ref="tree"
             ></treeItem>
+            <el-tree
+            :data="content"
+            :props="{label: 'TABLE_NAME'}"
+            :load="loadTable"
+            lazy>
+
+            </el-tree>
             <el-button type="success" size="mini" style="font-size: 14px" @click="onCreateTable">Создать таблицу</el-button>
         </div>
         
@@ -132,6 +139,13 @@ export default {
           this.newRowData = null;
           this.treeReload();
           this.treeReload = null;
+      },
+
+      loadTable(node, resolve){
+          console.log(node);
+          // if(node.data[0].tbl === 1){
+          //     alert("TABLE");
+          // }
       }
   },
 }
