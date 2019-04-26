@@ -2,36 +2,58 @@
     <div id="content">
         <div id="tree">
             <treeItem
-                v-for="item in content"
-                :key="item.id"
-                :tableName="item.TABLE_NAME"
-                @open-full="onOpenFull"
-                @confirm-delete="onConfirmDelete"
-                @new-row="onNewRow"
-                ref="tree"
-            ></treeItem>
-            <el-tree
-            :data="content"
-            :props="{label: 'TABLE_NAME'}"
-            :load="loadTable"
-            lazy>
+                    v-for="item in content"
+                    :key="item.id"
+                    :tableName="item.TABLE_NAME"
+                    @open-full="onOpenFull"
+                    @confirm-delete="onConfirmDelete"
+                    @new-row="onNewRow">
 
+            </treeItem>
+            <el-tree
+                    v-if="showTree"
+                    ref="tree"
+                    :props="props"
+                    :load="loadTable"
+                    node-key="TABLE_NAME"
+                    lazy
+                    @node-click="onOpenFull">
+                        <span class="custom-tree-node" slot-scope="{ node, data }">
+                            <span>{{ node.label }}</span>
+                            <span>
+                                <el-button
+                                        type="text"
+                                        size="mini"
+                                        @click="() => append(data)">
+                                    Append
+                                </el-button>
+                                <el-button
+                                        style="color: red"
+                                        type="text"
+                                        size="medium"
+                                        icon="el-icon-delete"
+                                        @click="() => deleteNode(node, data)">
+                                </el-button>
+                            </span>
+                        </span>
             </el-tree>
-            <el-button type="success" size="mini" style="font-size: 14px" @click="onCreateTable">Создать таблицу</el-button>
+            <el-button type="success" size="mini" style="font-size: 14px" @click="onCreateTable">Создать таблицу
+            </el-button>
         </div>
-        
+
         <div style="border-left:1px solid #808080; height: 100%; position: fixed; margin-left: 35%;"></div>
-          
+
         <div id="crud">
             <div id="editView">
-                <tableEdit v-if="fullRow" :rowData="fullRow" :curTable="curTable"></tableEdit>
-                <tableCreate v-if="tableCreating" @reload="reload"></tableCreate>
+                <tableEdit v-if="fullRow" :row-data="fullRow" :cur-table="curTable"
+                           :node-parent="nodeParent"></tableEdit>
+                <tableCreate v-if="tableCreating" @reload="reload" @new-table="onNewTable"></tableCreate>
             </div>
 
             <hr>
 
             <div id="tips">
-                
+
             </div>
         </div>
 
@@ -48,10 +70,15 @@
             <hr>
             <div id="newRowDialog">
                 <table>
-                    <tr><th>Название</th><th>Значение</th></tr>
+                    <tr>
+                        <th>Название</th>
+                        <th>Значение</th>
+                    </tr>
                     <tr v-for="(data, key) in newRowData" :key="key">
                         <td>{{key}}</td>
-                        <td><el-input size="medium" type="text" v-model="newRowData[key]"></el-input></td>
+                        <td>
+                            <el-input size="medium" type="text" v-model="newRowData[key]"></el-input>
+                        </td>
                     </tr>
                 </table>
             </div>
@@ -64,91 +91,139 @@
 </template>
 
 <script>
-import treeItem from './components/treeItem'
-import tableEdit from './components/tableEdit'
-import db from './db'
-import tableCreate from './components/tableCreate'
+    import treeItem from './components/treeItem'
+    import tableEdit from './components/tableEdit'
+    import db from './db'
+    import tableCreate from './components/tableCreate'
 
-export default {
-  name: 'app',
-  data() {
-    return {
-        content:null,
-        fullRow: null,
-        curTable: null,
-        tableCreating: false,
-        confirmDeleteVis: false,
-        tableModal: null,
-        newRow: false,
-        newRowData: null,
-        treeReload: null,
+    export default {
+        name: 'app',
+        data() {
+            return {
+                showTree: true,
+                content: null,
+                fullRow: null,
+                curTable: null,
+                tableCreating: false,
+                confirmDeleteVis: false,
+                tableModal: null,
+                newRow: false,
+                newRowData: null,
+                treeReload: null,
+                props: {label: "name", isLeaf: "leaf"},
+                nodeParent: null,
+                nodeDel: null,
+                treeId: 0,
+            }
+        },
+        components: {
+            treeItem,
+            tableEdit,
+            tableCreate,
+        },
+        async mounted() {
+            this.content = await db.getTablesList();
+        },
+
+        methods: {
+            onOpenFull(data, node) {
+                if (node.data.leaf) {
+                    this.fullRow = node.data;
+                    this.nodeParent = node.parent.data;
+                    this.tableCreating = false;
+                    this.curTable = node.data.table;
+                }
+            },
+
+            onCreateTable() {
+                this.fullRow = null;
+                this.tableCreating = true;
+            },
+
+            async reload() {
+                this.content = await db.getTablesList();
+            },
+
+            onNewTable(newTable){
+                this.$refs.tree.root.data = [];
+                newTable.name = newTable.TABLE_NAME;
+                this.$refs.tree.append(newTable, this.$refs.tree.root);
+                this.$refs.tree.root.data = undefined;
+            },
+
+            async deleteNode(node, data){
+                if(data.tbl){
+                    this.onConfirmDelete(data.TABLE_NAME);
+                    this.nodeDel = node;
+                }
+            },
+
+            async deleteTable() {
+                await db.deleteTable(this.tableModal);
+                this.confirmDeleteVis = false;
+                this.$refs.tree.remove(this.nodeDel.data.TABLE_NAME);
+                await this.reload();
+            },
+
+            onConfirmDelete(table) {
+                this.confirmDeleteVis = true;
+                this.tableModal = table;
+            },
+
+            onNewRow(tableCols, tableName, reload) {
+                this.curTable = tableName;
+                this.treeReload = reload;
+                this.newRow = true;
+                this.newRowData = {};
+                tableCols.forEach((column) => {
+                    if (column['name'] != "id" && column['name'] != "key_name") {
+                        this.$set(this.newRowData, `${column['name']}`, null)
+                    }
+                });
+            },
+
+            async onInsert() {
+                await db.insertIntoTable(this.curTable, this.newRowData);
+                this.newRow = false;
+                this.newRowData = null;
+                this.treeReload();
+                this.treeReload = null;
+            },
+
+            async loadTable(node, resolve) {
+                if (node.level === 0) {
+                    let data = await db.getTablesList();
+                    data = data.map(r => Object.assign(r, {name: r.TABLE_NAME}));
+
+                    return resolve(data)
+                }
+
+                //tbl represents whenever node is table or a row.
+                if (node.data.tbl === 1) {
+                    let data = (await db.getContent(node.data.TABLE_NAME)).rows;
+                    data = data.map(r => Object.assign(r, {name: r.key_name, table: node.data.TABLE_NAME}));
+                    resolve(data);
+                }
+
+                if (node.data.isRow === 1) {
+                    let data = [];
+                    for (let prop in node.data) {
+                        if (prop != "id" && prop != "key_name" && prop != "isRow" && prop != "name" && prop != "table") {
+                            data.push({
+                                prop: prop,
+                                value: node.data[prop],
+                                name: node.data[prop],
+                                leaf: true,
+                                table: node.data.table,
+                                rowId: node.data.id
+                            });
+                        }
+                    }
+                    resolve(data);
+                }
+            }
+        },
     }
-  },
-  components: {
-      treeItem,
-      tableEdit,
-      tableCreate,
-  },
-  async mounted() {
-     this.content = await db.getTablesList();
-  },
-
-  methods: {
-      onOpenFull(column, table){
-          this.fullRow = column;
-          this.curTable = table;
-          this.tableCreating = false;
-      },
-
-      onCreateTable(){
-          this.fullRow = null;
-          this.tableCreating = true;
-      },
-
-      async reload(){
-          this.content = await db.getTablesList();
-      },
-
-
-      async deleteTable(){
-          await db.deleteTable(this.tableModal);
-          this.confirmDeleteVis = false;
-          this.reload();
-      },
-
-      onConfirmDelete(table){
-          this.confirmDeleteVis = true;
-          this.tableModal = table;
-      },
-
-      onNewRow(tableCols, tableName, reload){
-          this.curTable = tableName;
-          this.treeReload = reload;
-          this.newRow = true;
-          this.newRowData = {};
-          tableCols.forEach((column) => {
-              if(column['name'] != "id" && column['name'] != "key_name") {
-                  this.$set(this.newRowData, `${column['name']}`, null)
-              }
-          });
-      },
-
-      async onInsert(){
-          await db.insertIntoTable(this.curTable, this.newRowData);
-          this.newRow = false;
-          this.newRowData = null;
-          this.treeReload();
-          this.treeReload = null;
-      },
-
-      loadTable(node, resolve){
-          console.log(node);
-          // if(node.data[0].tbl === 1){
-          //     alert("TABLE");
-          // }
-      }
-  },
-}
 </script>
 
 <style scoped>
@@ -160,19 +235,19 @@ export default {
         height: 1px;
     }
 
-    #content{
+    #content {
         display: flex;
         flex-direction: row;
         width: 100%;
         height: 100%;
     }
 
-    #tree{
+    #tree {
         width: 30%;
         position: fixed;
     }
 
-    #crud{
+    #crud {
         display: flex;
         flex-direction: column;
         width: 65%;
@@ -181,25 +256,35 @@ export default {
         margin-left: 35%;
     }
 
-    #editView{
+    #editView {
         height: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    #tips{
+    #tips {
         height: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    #newRowDialog{
+    #newRowDialog {
         margin-top: 10px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
     }
+
+    .custom-tree-node {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 14px;
+        padding-right: 8px;
+    }
+
 </style>

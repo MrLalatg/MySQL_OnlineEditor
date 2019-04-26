@@ -62,8 +62,8 @@
             },
 
             async createTable(){
-                await db.createTable(this.tableName, this.rows, this.keyName);
-                this.$emit('reload');
+                let newTable = await db.createTable(this.tableName, this.rows, this.keyName);
+                this.$emit('new-table', newTable[0]);
             }
         }
     }

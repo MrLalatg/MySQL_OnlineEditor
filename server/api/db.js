@@ -13,7 +13,7 @@ router.get('/:table', (req, res) => {
 	}
 	const connection = createConnection();
 	connection.connect();
-	connection.query(`SELECT * FROM ${req.params.table}`, (err, rows, columns) => {
+	connection.query(`SELECT *, 1 as isRow FROM ${req.params.table}`, (err, rows, columns) => {
 		res.send(JSON.stringify({rows, columns}));
 	});
 });
@@ -36,7 +36,9 @@ router.post('/', (req, res) => {
 	connection.query(`CREATE TABLE IF NOT EXISTS ${req.body.tableName}(${req.body.cols.reduce((acc, item) => 
 		`${acc} , ${item.colName} ${item.type}`
 	, `id INT AUTO_INCREMENT NOT NULL, key_name VARCHAR(255) GENERATED ALWAYS AS (${req.body.keyname}) VIRTUAL`)}, PRIMARY KEY(id))`, (err) => {
-		res.sendStatus(201);
+	});
+	connection.query(`SELECT * FROM information_schema.tables WHERE TABLE_NAME='${req.body.tableName}'`, (err, rows) => {
+		res.send(JSON.stringify(rows));
 	});
 });
 
@@ -58,8 +60,9 @@ router.post('/:table', (req, res) => {
 	}
 	const connection = createConnection();
 	connection.connect();
-	const toWrite = Object.keys(req.body).filter(key => key !== "id" && key !== "key_name").map(key => `${key}='${req.body[key]}'`).join(',');
-	connection.query(`UPDATE ${req.params.table} SET ${toWrite} WHERE id=${req.body.id}`);
+	// const toWrite = Object.keys(req.body).filter(key => key !== "id" && key !== "key_name").map(key => `${key}='${req.body[key]}'`).join(',');
+	const toWrite = `${req.body.prop}='${req.body.value}'`;
+	connection.query(`UPDATE ${req.params.table} SET ${toWrite} WHERE id=${req.body.rowId}`);
 	res.sendStatus(201);
 });
 

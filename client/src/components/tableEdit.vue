@@ -2,12 +2,10 @@
     <div>
         <table>
             <tr><th>Название</th><th>Значение</th></tr>
-            <template v-for="(data, key) in rowData">
-                <tr :key="key" v-if="key != 'id' && key != 'key_name'">
-                    <td>{{key}}</td>
-                    <td><el-input size="medium" type="text" v-model="rowData[key]"></el-input></td>
-                </tr>
-            </template>
+            <tr>
+                <td>{{rowData['prop']}}</td>
+                <td><el-input size="medium" type="text" v-model="rowData['value']"></el-input></td>
+            </tr>
         </table>
         <el-button size="small" type="success" plain @click="onSaveClick" v-if="modified">Сохранить</el-button>
     </div>
@@ -31,18 +29,23 @@ export default {
 
     methods: {
         onSaveClick(){
+            this.rowData.name = this.rowData.value;
+            this.rowData.key_name = this.rowData.value;
+            if(this.nodeParent.key_name === this.copyData.value){
+                this.nodeParent.name = this.rowData.value;
+            }
             db.setValue(this.curTable, this.rowData);
-            //alert('CLICK!');
         },
     },
 
     props: {
         rowData: Object,
-        curTable: String
+        curTable: String,
+        nodeParent: Object,
     },
 
     watch: {
-        "rowData.id": function(){
+        "rowData.prop": function(){
             this.copyData = _.cloneDeep(this.rowData);
         },
     },
