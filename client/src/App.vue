@@ -1,15 +1,6 @@
 <template>
     <div id="content">
         <div id="tree">
-            <treeItem
-                    v-for="item in content"
-                    :key="item.id"
-                    :tableName="item.TABLE_NAME"
-                    @open-full="onOpenFull"
-                    @confirm-delete="onConfirmDelete"
-                    @new-row="onNewRow">
-
-            </treeItem>
             <el-tree
                     v-if="showTree"
                     ref="tree"
@@ -24,14 +15,16 @@
                                 <el-button
                                         type="text"
                                         size="mini"
-                                        @click="() => append(data)">
-                                    Append
+                                        v-if="node.data.tbl"
+                                        @click="() => onNewRow(node, data)">
+                                    Добавить строку
                                 </el-button>
                                 <el-button
                                         style="color: red"
                                         type="text"
                                         size="medium"
                                         icon="el-icon-delete"
+                                        v-if="node.data.tbl || node.data.isRow"
                                         @click="() => deleteNode(node, data)">
                                 </el-button>
                             </span>
@@ -91,7 +84,6 @@
 </template>
 
 <script>
-    import treeItem from './components/treeItem'
     import tableEdit from './components/tableEdit'
     import db from './db'
     import tableCreate from './components/tableCreate'
@@ -114,10 +106,10 @@
                 nodeParent: null,
                 nodeDel: null,
                 treeId: 0,
+                parentNodeNewRow: null,
             }
         },
         components: {
-            treeItem,
             tableEdit,
             tableCreate,
         },
@@ -147,14 +139,19 @@
             onNewTable(newTable){
                 this.$refs.tree.root.data = [];
                 newTable.name = newTable.TABLE_NAME;
+                Object.assign(newTable, {tbl: 1});
                 this.$refs.tree.append(newTable, this.$refs.tree.root);
                 this.$refs.tree.root.data = undefined;
             },
 
             async deleteNode(node, data){
+                this.curTable = data.table;
                 if(data.tbl){
                     this.onConfirmDelete(data.TABLE_NAME);
                     this.nodeDel = node;
+                } else if(data.isRow) {
+                    await db.deleteRow(this.curTable, data.id);
+                    this.$refs.tree.remove(node);
                 }
             },
 
@@ -170,24 +167,26 @@
                 this.tableModal = table;
             },
 
-            onNewRow(tableCols, tableName, reload) {
-                this.curTable = tableName;
-                this.treeReload = reload;
-                this.newRow = true;
+            async onNewRow(node, data) {
+                this.curTable = data.TABLE_NAME;
                 this.newRowData = {};
+                let tableCols = await db.getTableColumns(data.TABLE_NAME);
                 tableCols.forEach((column) => {
-                    if (column['name'] != "id" && column['name'] != "key_name") {
-                        this.$set(this.newRowData, `${column['name']}`, null)
+                    if (column['COLUMN_NAME'] != "id" && column['COLUMN_NAME'] != "key_name") {
+                        this.$set(this.newRowData, `${column['COLUMN_NAME']}`, null)
                     }
                 });
+                this.newRow = true;
+                this.parentNodeNewRow = node;
             },
 
             async onInsert() {
-                await db.insertIntoTable(this.curTable, this.newRowData);
+                let createdRow = await db.insertIntoTable(this.curTable, this.newRowData);
+                Object.assign(createdRow[0], {name: createdRow[0].key_name, isRow: 1});
+                this.$refs.tree.append(createdRow[0], this.parentNodeNewRow);
                 this.newRow = false;
                 this.newRowData = null;
-                this.treeReload();
-                this.treeReload = null;
+                this.parentNodeNewRow = null;
             },
 
             async loadTable(node, resolve) {
@@ -198,7 +197,7 @@
                     return resolve(data)
                 }
 
-                //tbl represents whenever node is table or a row.
+                //tbl represents whenever node is table or not
                 if (node.data.tbl === 1) {
                     let data = (await db.getContent(node.data.TABLE_NAME)).rows;
                     data = data.map(r => Object.assign(r, {name: r.key_name, table: node.data.TABLE_NAME}));

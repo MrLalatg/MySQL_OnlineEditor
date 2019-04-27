@@ -32,4 +32,14 @@ export default class db{
         const res = await axios.post(`${url}insert/${table}`, data);
         return res.data;
     }
+
+    static async deleteRow(table, rowId){
+        const res = await axios.delete(`${url}row/${table}`, {data: {id: rowId}});
+        return res.data;
+    }
+
+    static async getTableColumns(table){
+        const res = await axios.get(`${url}cols/${table}`);
+        return res.data;
+    }
 }
