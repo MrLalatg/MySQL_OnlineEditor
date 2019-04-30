@@ -220,7 +220,7 @@
                     }
                     resolve(data);
                 }
-            }
+            },
         },
     }
 </script>

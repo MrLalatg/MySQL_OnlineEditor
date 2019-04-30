@@ -82,7 +82,7 @@ router.post('/insert/:table', (req, res) => {
 
     });
 
-    connection.query(`SELECT *, '${req.params.table}' as 'table' FROM ${req.params.table} ORDER BY id DESC LIMIT 1`, (err, rows) =>{
+    connection.query(`SELECT *, '${req.params.table}' as 'table' FROM ${req.params.table} ORDER BY id DESC LIMIT 1`, (err, rows) => {
         res.send(rows);
     });
 });
@@ -111,6 +111,40 @@ router.get('/cols/:table', (req, res) => {
     connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name='${req.params.table}'`, (err, rows) => {
         res.send(JSON.stringify(rows));
     });
+});
+
+//-------------------------------\\
+//RELATIONSHIPS
+//-------------------------------\\
+
+//Set-up one-to-many relationship
+router.post('/relp/one-to-many', (req, res) => {
+    if (!authTables.includes(req.body.mainTable) || !authTables.includes(req.body.manyTable)) {
+        res.sendStatus(403);
+    }
+    const connection = createConnection();
+    connection.connect();
+
+    let manyTableFK = req.body.mainTable + '_id';
+
+    let strict = req.body.strict ? " NOT NULL" : "";
+
+    connection.query(`ALTER TABLE ${req.body.manyTable} ADD COLUMN ${manyTableFK} INT${strict}, CONSTRAINT ${req.body.FKName} ADD FOREIGN KEY (${manyTableFK}) REFERENCES ${req.body.mainTable} (id)`);
+});
+
+//Set-up one-to-one relationship
+router.post('/relp/one-to-one', (req, res) => {
+    if (!authTables.includes(req.body.mainTable) || !authTables.includes(req.body.manyTable)) {
+        res.sendStatus(403);
+    }
+    const connection = createConnection();
+    connection.connect();
+
+    let mainTableFK = req.body.subTable + '_id';
+
+    let strict = req.body.strict ? " NOT NULL" : "";
+
+    connection.query(`ALTER TABLE ${req.body.mainTable} ADD COLUMN ${mainTableFK} INT UNIQUE${strict}, CONSTRAINT ${req.body.FKName} ADD FOREIGN KEY (${mainTableFK}) REFERENCES ${req.body.subTable} (id)`);
 });
 
 function createConnection() {
