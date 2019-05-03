@@ -1,7 +1,8 @@
 <template>
     <div id="content">
-        <div id="tree">
+        <div id="tree" style="display: flex; justify-content: stretch; flex-direction: column" >
             <el-tree
+                    style="overflow: auto;flex-grow: 1"
                     v-if="showTree"
                     ref="tree"
                     :props="props"
@@ -9,13 +10,13 @@
                     node-key="TABLE_NAME"
                     lazy
                     @node-click="onOpenFull">
-                        <span class="custom-tree-node" slot-scope="{ node, data }">
-                            <span>{{ node.label }}</span>
-                            <span>
+                        <div class="custom-tree-node" slot-scope="{ node, data }">
+                            <div>{{ node.label }}</div>
+                            <div>
                                 <el-button
                                         type="text"
                                         size="mini"
-                                        v-if="node.data.tbl"
+                                        v-if="node.data.type === 'table'"
                                         @click="() => onNewRow(node, data)">
                                     Добавить строку
                                 </el-button>
@@ -24,13 +25,13 @@
                                         type="text"
                                         size="medium"
                                         icon="el-icon-delete"
-                                        v-if="node.data.tbl || node.data.isRow"
+                                        v-if="node.data.type === 'table' || node.data.type === 'row'"
                                         @click="() => deleteNode(node, data)">
                                 </el-button>
-                            </span>
-                        </span>
+                            </div>
+                        </div>
             </el-tree>
-            <el-button type="success" size="mini" style="font-size: 14px" @click="onCreateTable">Создать таблицу
+            <el-button type="success" size="mini" style="font-size: 14px;margin-bottom: 20px" @click="onCreateTable">Создать таблицу
             </el-button>
         </div>
 
@@ -40,7 +41,8 @@
             <div id="editView">
                 <tableEdit v-if="fullRow" :row-data="fullRow" :cur-table="curTable"
                            :node-parent="nodeParent"></tableEdit>
-                <tableCreate v-if="tableCreating" @reload="reload" @new-table="onNewTable"></tableCreate>
+                <tableCreate v-if="tableCreating" @reload="reload" @new-table="onNewTable"
+                             :all-tables="content"></tableCreate>
             </div>
 
             <hr>
@@ -73,7 +75,18 @@
                             <el-input size="medium" type="text" v-model="newRowData[key]"></el-input>
                         </td>
                     </tr>
+                    <tr v-for="item in newRowRefsData" :key="item">
+                        <td>{{item.key}}</td>
+                        <td>
+                            <el-select v-model="item.id" filterable>
+                                <el-option v-for="autoitem in getAutocompleteData(item.key)" :value="autoitem.id" :label="autoitem.key_name"></el-option>
+                            </el-select>
+                        </td>
+                    </tr>
                 </table>
+                <el-button v-for="ref in newRowRefs" :key="ref.key" type="primary" plain size="medium"
+                           @click="addRefData(ref.key)">Добавить связь с {{ref.key}}
+                </el-button>
             </div>
             <span slot="footer" class="dialog-footer">
                 <el-button type="danger" @click="newRowData = {}; newRow = false">Отмена</el-button>
@@ -87,6 +100,7 @@
     import tableEdit from './components/tableEdit'
     import db from './db'
     import tableCreate from './components/tableCreate'
+    import _ from 'lodash'
 
     export default {
         name: 'app',
@@ -107,12 +121,15 @@
                 nodeDel: null,
                 treeId: 0,
                 parentNodeNewRow: null,
+                newRowRefs: null,
+                newRowRefsData: [],
             }
         },
         components: {
             tableEdit,
             tableCreate,
         },
+
         async mounted() {
             this.content = await db.getTablesList();
         },
@@ -136,7 +153,15 @@
                 this.content = await db.getTablesList();
             },
 
-            onNewTable(newTable){
+            getAutocompleteData(tableName){
+                return _.find(this.newRowRefs, el => el.key === tableName).data;
+            },
+
+            addRefData(tableName) {
+                this.newRowRefsData.push({key: tableName, id: null});
+            },
+
+            onNewTable(newTable) {
                 this.$refs.tree.root.data = [];
                 newTable.name = newTable.TABLE_NAME;
                 Object.assign(newTable, {tbl: 1});
@@ -144,12 +169,12 @@
                 this.$refs.tree.root.data = undefined;
             },
 
-            async deleteNode(node, data){
+            async deleteNode(node, data) {
                 this.curTable = data.table;
-                if(data.tbl){
+                if (data.tbl) {
                     this.onConfirmDelete(data.TABLE_NAME);
                     this.nodeDel = node;
-                } else if(data.isRow) {
+                } else if (data.isRow) {
                     await db.deleteRow(this.curTable, data.id);
                     this.$refs.tree.remove(node);
                 }
@@ -170,20 +195,23 @@
             async onNewRow(node, data) {
                 this.curTable = data.TABLE_NAME;
                 this.newRowData = {};
-                let tableCols = await db.getTableColumns(data.TABLE_NAME);
-                tableCols.forEach((column) => {
-                    if (column['COLUMN_NAME'] != "id" && column['COLUMN_NAME'] != "key_name") {
+                let columnsData = await db.getTableColumns(data.TABLE_NAME);
+                columnsData.columns.forEach((column) => {
+                    if (column['COLUMN_NAME'] !== "id" && column['COLUMN_NAME'] !== "key_name") {
                         this.$set(this.newRowData, `${column['COLUMN_NAME']}`, null)
                     }
                 });
+
+                this.newRowRefs = columnsData.autocompleteData;
+
                 this.newRow = true;
                 this.parentNodeNewRow = node;
             },
 
             async onInsert() {
-                let createdRow = await db.insertIntoTable(this.curTable, this.newRowData);
-                Object.assign(createdRow[0], {name: createdRow[0].key_name, isRow: 1});
-                this.$refs.tree.append(createdRow[0], this.parentNodeNewRow);
+                let createdRow = await db.insertIntoTable(this.curTable, this.newRowData, this.newRowRefsData);
+                Object.assign(createdRow, {name: createdRow.key_name, isRow: 1});
+                this.$refs.tree.append(createdRow, this.parentNodeNewRow);
                 this.newRow = false;
                 this.newRowData = null;
                 this.parentNodeNewRow = null;
@@ -193,21 +221,19 @@
                 if (node.level === 0) {
                     let data = await db.getTablesList();
                     data = data.map(r => Object.assign(r, {name: r.TABLE_NAME}));
-
+                    data = data.filter(r => r.TABLE_NAME !== 'relationships');
                     return resolve(data)
                 }
 
                 //tbl represents whenever node is table or not
-                if (node.data.tbl === 1) {
-                    let data = (await db.getContent(node.data.TABLE_NAME)).rows;
+                if (node.data.type === 'table') {
+                    let data = (await db.getContent(node.data.TABLE_NAME));
                     data = data.map(r => Object.assign(r, {name: r.key_name, table: node.data.TABLE_NAME}));
                     resolve(data);
-                }
-
-                if (node.data.isRow === 1) {
+                } else {
                     let data = [];
                     for (let prop in node.data) {
-                        if (prop != "id" && prop != "key_name" && prop != "isRow" && prop != "name" && prop != "table") {
+                        if (prop !== "id" && prop !== "key_name" && prop !== "type" && prop !== "name" && prop !== "table") {
                             data.push({
                                 prop: prop,
                                 value: node.data[prop],
@@ -218,6 +244,13 @@
                             });
                         }
                     }
+                    let refs = await db.getReferences(node.data.table, node.data.id);
+                    let refData = refs.reduce((acc, item) => {
+                        return acc.concat(item.data.map(obj => Object.assign(obj, {name: item.name, table: item.name})));
+                    }, []);
+
+                    data.push(...refData);
+
                     resolve(data);
                 }
             },
@@ -225,7 +258,7 @@
     }
 </script>
 
-<style scoped>
+<style>
     hr {
         border: 0;
         display: block;
@@ -241,9 +274,16 @@
         height: 100%;
     }
 
+    .el-tree-node__children{
+        overflow: inherit!important;
+    }
+
     #tree {
         width: 30%;
+        height: 100%;
         position: fixed;
+        overflow-x: auto;
+        overflow-y: auto;
     }
 
     #crud {

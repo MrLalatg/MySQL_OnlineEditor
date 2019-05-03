@@ -28,8 +28,8 @@ export default class db{
         return res.data;
     }
 
-    static async insertIntoTable(table, data){
-        const res = await axios.post(`${url}insert/${table}`, data);
+    static async insertIntoTable(table, data, refs){
+        const res = await axios.post(`${url}insert/${table}`, {cols: data, refs});
         return res.data;
     }
 
@@ -40,6 +40,11 @@ export default class db{
 
     static async getTableColumns(table){
         const res = await axios.get(`${url}cols/${table}`);
+        return res.data;
+    }
+
+    static async getReferences(table, rowId){
+        const res = await axios.get(`${url}relp/${table}/${rowId}`);
         return res.data;
     }
 }

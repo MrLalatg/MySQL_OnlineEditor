@@ -13,13 +13,15 @@
                 <td>
                     <el-select placeholder="Тип поля" v-model="row.type" size="medium">
                         <el-option value="VARCHAR(255)" label="Строка"></el-option>
-                        <el-option value="INT" label="Целое Число"></el-option>
-                        <el-option value="BOOLEAN" label="Логическое значение"></el-option>
+                        <el-option value="REFERENCE" label="Связь"></el-option>
                     </el-select>
                 </td>
 
                 <td>
-                    <el-input type="text" v-model="row.colName" size="medium"></el-input>
+                    <el-input v-if="row.type === 'VARCHAR(255)'" type="text" v-model="row.colName" size="medium"></el-input>
+                    <el-select v-if="row.type === 'REFERENCE'" size="medium" v-model="row.colName">
+                        <el-option v-for="table in allTables" :key="table.TABLE_NAME" :label="table.TABLE_NAME" :value="table.TABLE_NAME"></el-option>
+                    </el-select>
                 </td>
 
                 <td>
@@ -35,7 +37,7 @@
         <el-button type="success" size="medium"  @click="createTable">Создать</el-button>
     </div>
 </template>
-`
+
 <script>
     import db from '../db';
     export default {
@@ -49,7 +51,7 @@
         },
 
         props: {
-
+            allTables: {default: []},
         },
 
         methods: {
