@@ -171,10 +171,10 @@
 
             async deleteNode(node, data) {
                 this.curTable = data.table;
-                if (data.tbl) {
+                if (data.type === 'table') {
                     this.onConfirmDelete(data.TABLE_NAME);
                     this.nodeDel = node;
-                } else if (data.isRow) {
+                } else if (data.type === 'row') {
                     await db.deleteRow(this.curTable, data.id);
                     this.$refs.tree.remove(node);
                 }
